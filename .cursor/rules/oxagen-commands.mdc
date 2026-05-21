@@ -1,0 +1,116 @@
+---
+description: Cookbook mapping the Claude Code `/oxagen:*` slash-command surface to Cursor user phrasings and Oxagen MCP tool calls. Reference this rule whenever the user says "oxagen", names a slash command (e.g. `/oxagen:impact`, `oxagen impact`), or uses phrasing that matches an entry in the tables below (callers, blast radius, recent changes, who owns, recall, claim, etc.).
+---
+
+# Oxagen command cookbook — Cursor edition
+
+Cursor does not have a slash-command primitive equivalent to Claude Code's
+`/oxagen:*`. The Oxagen MCP server exposes the same tool surface to
+Cursor; this rule is the routing table.
+
+When the user types one of the trigger phrases below — verbatim or close
+to it — call the listed MCP tool with the documented inputs and surface
+the response per the **Output** convention.
+
+## Setup and Q&A
+
+| Trigger phrase | MCP call | Output |
+|---|---|---|
+| `/oxagen:setup`, "set up oxagen", "wire oxagen to this workspace" | Direct the user to `https://app.oxagen.ai/setup/cursor`; remind them to export `OXAGEN_MCP_TOKEN` and reload Cursor's MCP server list. | One-line confirmation + the URL. |
+| `/oxagen:ask <q>`, "ask the graph X", "answer X using the ontology" | `ontology.ask({ question, limit: 50 })` | Print `answer` verbatim; append the generated Cypher in a collapsed block; if `confidence < 0.4` add a low-confidence caveat. |
+| `/oxagen:search <q>`, "search the workspace for X" | `ontology.search({ query, limit: 25 })` (or `ontology.ask` then fall back). | Top-10 hits with `name`, `file:line`, score; "(N more)" footer if truncated. |
+
+## Discovery and structure
+
+| Trigger phrase | MCP call | Output |
+|---|---|---|
+| `/oxagen:repo-overview`, "summarise this repo" | `code.repo_overview` | Language mix, top modules, entry-point count, total nodes/edges. |
+| `/oxagen:module-tree <path>`, "show the module tree under X" | `code.module_tree({ path })` | ASCII tree with per-subtree symbol counts. |
+| `/oxagen:find-symbol <name>`, "where is X defined?" | `code.find_symbol({ query })` | Numbered list of candidate nodes with `file:line` anchors. |
+| `/oxagen:describe <symbol>`, "describe X" | `code.describe_symbol({ symbol })` | Kind, signature, decorators, docstring, location. |
+| `/oxagen:read <symbol>`, "show me the code for X" | `code.read_symbol({ symbol, context_lines: 8 })` | Source bytes + ranged `file:line-line` header. |
+| `/oxagen:find-pattern <pattern>`, "search for code that looks like X" | `code.find_pattern({ pattern })` | Top-10 hits with `file:line` and surrounding context. |
+| `/oxagen:explain <symbol>`, "explain X" | `ontology.explain_function({ symbol })` | Behavioural description: inputs, outputs, calls, reads, writes, raises. |
+
+## Traversal
+
+| Trigger phrase | MCP call | Output |
+|---|---|---|
+| `/oxagen:impact <symbol>`, "blast radius of X", "what breaks if I change X?" | `ontology.impact_of({ symbol })` (one-shot bundle) | Callers (top-10 by PageRank), dependencies, longest reach path, neighborhood, active claims. |
+| `/oxagen:callers <symbol>`, "who calls X?" | `code.find_callers({ symbol })` | List sorted by PageRank; show top-10 + `(N more)`. |
+| `/oxagen:callees <symbol>`, "what does X call?" | `code.callees_of({ symbol })` | List sorted by PageRank. |
+| `/oxagen:refs <symbol>`, "find references to X" | `code.references_to({ symbol })` | Calls + imports + type uses grouped by kind. |
+| `/oxagen:path <from> <to>`, "how does X reach Y?" | `code.find_path({ from, to })` | Numbered hops: `(1) X → (2) middleware → (3) Y`. |
+| `/oxagen:cochange <symbol>`, "what changes with X?" | `code.co_changes_with({ symbol })` | Top-10 symbols by co-change frequency. |
+
+## History and ownership
+
+| Trigger phrase | MCP call | Output |
+|---|---|---|
+| `/oxagen:who-knows <symbol>`, "who owns X?" | `code.who_knows_about({ symbol })` | Ranked list of authors/reviewers with activity scores. |
+| `/oxagen:expert <login>`, "what does <person> own?" | `code.expertise({ login })` | Modules + symbols ranked by ownership depth. |
+| `/oxagen:recent [--days N]`, "what changed recently?" | `code.recent_changes({ days: 7 })` | Commits with author, message, paths touched. |
+| `/oxagen:blame <file>`, "enriched blame for X" | `code.blame_enriched({ file })` | Per-block: author, commit, linked PR, linked issue. |
+| `/oxagen:pr <num>`, "show PR N" | `code.pr_context({ number })` | Title, body, files, commits, reviewers, linked issues, affected nodes. |
+| `/oxagen:pr-history <symbol>`, "PRs that touched X" | `code.pr_history({ symbol })` | Newest-first list with PR number, title, merge sha. |
+| `/oxagen:issue <key>`, "show issue X" | `code.issue_context({ key })` | Title, body, comments, linked PRs, affected nodes. |
+| `/oxagen:find-issues <q>`, "find issues about X" | `code.find_issues({ query })` | Top-10 matches with state and labels. |
+
+## Tests and CI
+
+| Trigger phrase | MCP call | Output |
+|---|---|---|
+| `/oxagen:tests-for <symbol>`, "tests for X" | `code.tests_for({ symbol })` | Direct + transitive tests with file:line. |
+| `/oxagen:coverage <file>`, "coverage for X" | `code.coverage_for({ file })` | Covered / uncovered / partial line counts + sparkline. |
+| `/oxagen:failing-tests`, "what's failing?" | `code.failing_tests()` | Test name, file:line, error signature, last-seen commit. |
+| `/oxagen:flaky-tests [--days N]`, "flakiest tests" | `code.flaky_tests({ days: 14 })` | Top-10 by flake rate. |
+| `/oxagen:last-run [workflow]`, "last CI run" | `code.last_run({ workflow })` | Conclusion, sha, branch, duration, failed job count. |
+| `/oxagen:run-failures <run-id>`, "what failed in run N?" | `code.run_failures({ run_id })` | Failed jobs/steps with cold-log preview. |
+
+## Security
+
+| Trigger phrase | MCP call | Output |
+|---|---|---|
+| `/oxagen:security-alerts [--severity]`, "open security alerts" | `security.open_alerts({ severity })` | List with severity, source, affected node. |
+| `/oxagen:alert <id>`, "alert N context" | `security.alert_context({ id })` | Description, affected nodes, recommendation, advisory links. |
+
+## Memory
+
+| Trigger phrase | MCP call | Output |
+|---|---|---|
+| `/oxagen:recall <intent>`, "what do we know about X?" | `memory.recall({ intent })` | Procedures + episodes with confidence and last-seen. |
+| `/oxagen:remember <fact>`, "remember that X" | `memory.remember({ fact, outcome })` | Episode id + confirmation. |
+| `/oxagen:procedure-for <trigger>`, "do we have a procedure for X?" | `memory.procedure_for({ trigger })` | Procedure body verbatim or "no match". |
+| `/oxagen:forget <id>`, "forget X" | `memory.forget({ id })` | Soft-delete confirmation. |
+| `/oxagen:memory-enable`, "turn on agent memory" | `workspace.enable_memory()` | Confirmation + seeded metric names. |
+| `/oxagen:memory-metric <name> <condition>`, "track metric X" | `memory.metric_create({ name, condition })` | Metric id. |
+| `/oxagen:memory-logs [limit]`, "recent agent actions" | `memory.search({ limit })` | Action_type, outcome, timestamp, agent_id. |
+
+## Coordination and ops
+
+| Trigger phrase | MCP call | Output |
+|---|---|---|
+| `/oxagen:claim <file:line \| symbol>`, "claim X" | `agent.claim_work({ scope })` | Claim id + expiry. |
+| `/oxagen:incident open\|resolve\|link`, "open / resolve / link incident" | `incident.open` / `incident.resolve` / `incident.link` | Incident id + affected nodes. |
+| `/oxagen:workspace-select [name]`, "switch workspace" | `workspace.list()` → prompt → `workspace.bind({ id })` | New workspace id + confirmation. |
+| `/oxagen:go [--p0 \| --issue OXA-N]`, "dispatch the swarm" | Dispatch is a server-side action — direct the user to `https://app.oxagen.ai/swarm/dispatch` with the issue prefilled. | Link + status-poll instructions. |
+| `/oxagen:watch [--daemons]`, "start the monitor" | Cursor cannot spawn long-lived daemons inside the editor — direct the user to run `oxagen watch` from a terminal. | Command + docs link. |
+
+## Output conventions (shared across commands)
+
+- Cite `file:line` for every node — the graph stores it.
+- Sort caller / dependency lists by PageRank when result count > 5.
+- Long lists: show top-10 + `(N more)` footer; do not paginate inside chat.
+- Quote actual node names from the graph, not paraphrases.
+- Cite memory hits explicitly: `Memory recall (procedure <id>, confidence 0.82): …`.
+- On low confidence (`< 0.4`), add a one-line caveat before the result.
+- On MCP error: surface the error verbatim, then suggest `/oxagen:setup` to re-verify wiring.
+
+## Failure modes
+
+| Symptom | Fix |
+|---|---|
+| Tool not found / 401 | `OXAGEN_MCP_TOKEN` missing or expired — re-run setup. |
+| Empty result for a symbol that exists | Ingest hasn't run — direct the user to **Settings → Connections** in the app and trigger re-ingest, or call `ontology.refresh_repo`. |
+| Stale claim blocking another session | Call `agent.list_active_claims`, identify the claim, override with `agent.claim_work({ scope, force: true })` — records an audit event. |
+| Low-confidence answers from `ontology.ask` | Graph may be sparse; recommend re-ingest and offer to fall back to `code.find_pattern` for the same query. |

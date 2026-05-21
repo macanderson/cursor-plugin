@@ -1,0 +1,35 @@
+{
+  "name": "oxagen-cursor",
+  "version": "0.21.8",
+  "description": "Ontology layer for AI agents. Typed, queryable knowledge graph exposed to Cursor as MCP-native tools — every code edit, research question, incident triage, or memory lookup gets grounded in deterministic graph context instead of guessing.",
+  "author": {
+    "name": "Oxagen",
+    "email": "support@oxagen.ai",
+    "url": "https://oxagen.ai"
+  },
+  "homepage": "https://oxagen.ai",
+  "repository": "https://github.com/oxagenai/cursor-plugin",
+  "documentation": "https://docs.oxagen.ai/plugins/cursor",
+  "issues": "https://github.com/oxagenai/cursor-plugin/issues",
+  "license": "MIT",
+  "category": "development",
+  "keywords": [
+    "ontology",
+    "knowledge-graph",
+    "mcp",
+    "memory",
+    "code-intelligence",
+    "incident-response",
+    "rag",
+    "agent-coordination",
+    "neo4j",
+    "self-improving"
+  ],
+  "host": "cursor",
+  "host_minimum_version": "0.43.0",
+  "primitives": {
+    "mcp": ".cursor/mcp.json",
+    "rules": ".cursor/rules/",
+    "hooks": ".cursor/hooks.json"
+  }
+}
